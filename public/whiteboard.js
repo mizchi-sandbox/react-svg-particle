@@ -41,16 +41,18 @@ Renderer = React.createClass({
       onClick: this.onClick
     }, this.state.bodies.map((function(_this) {
       return function(body) {
-        return DOM.circle({
-          key: body.uid,
-          cx: body.state.pos.x,
-          cy: body.state.pos.y,
-          r: body.radius,
-          style: {
-            fill: 'none',
-            stroke: 'red'
-          }
-        });
+        if (body.radius != null) {
+          return DOM.circle({
+            key: body.uid,
+            cx: body.state.pos.x,
+            cy: body.state.pos.y,
+            r: body.radius,
+            style: {
+              fill: 'none',
+              stroke: 'red'
+            }
+          });
+        }
       };
     })(this)));
   }
@@ -58,11 +60,17 @@ Renderer = React.createClass({
 
 $((function(_this) {
   return function() {
-    var gravity, i, renderer, viewportBounds, world, _i;
+    var edgeBounce, gravity, i, renderer, viewportBounds, world, _i;
     world = Physics({
       integrator: 'verlet',
       maxIPF: 16,
       timestep: 1000.0 / 300
+    });
+    viewportBounds = Physics.aabb(0, 0, 640, 480);
+    edgeBounce = Physics.behavior('edge-collision-detection', {
+      aabb: viewportBounds,
+      restitution: 0.99,
+      cof: 0.99
     });
     gravity = Physics.behavior('constant-acceleration', {
       acc: {
@@ -70,17 +78,13 @@ $((function(_this) {
         y: 0.0004
       }
     });
-    world.add(gravity);
-    viewportBounds = Physics.aabb(0, 0, 640, 480);
-    world.add(Physics.behavior('edge-collision-detection', {
-      aabb: viewportBounds,
-      restitution: 0.99,
-      cof: 0.99
-    }));
-    world.add(Physics.behavior('body-impulse-response'));
     renderer = React.renderComponent(Renderer({
       world: world
     }), document.body);
+    world.add([Physics.behavior('constant-acceleration'), Physics.behavior('body-impulse-response'), Physics.behavior('body-collision-detection'), Physics.behavior('sweep-prune'), edgeBounce, gravity]);
+    for (i = _i = 1; _i <= 30; i = ++_i) {
+      addParticle(world);
+    }
     Physics.util.ticker.on(function(time) {
       var bodies;
       world.step(time);
@@ -94,9 +98,6 @@ $((function(_this) {
         bodies: world.getBodies()
       });
     });
-    for (i = _i = 1; _i <= 100; i = ++_i) {
-      addParticle(world);
-    }
     return Physics.util.ticker.start();
   };
 })(this));
